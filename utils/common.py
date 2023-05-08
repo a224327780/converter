@@ -5,6 +5,7 @@ from datetime import timezone, timedelta, datetime
 from functools import wraps
 from inspect import isawaitable
 
+import yaml
 from sanic import HTTPResponse, Request, response
 from sanic.response import ResponseStream
 
@@ -38,6 +39,10 @@ def vmess_to_clash(vmess_data):
             }
         }
     }
+
+
+def to_yaml(data):
+    return yaml.dump(data, sort_keys=False, allow_unicode=True)
 
 
 def get_bj_date(add_seconds=None, fmt='%Y-%m-%d %H:%M:%S'):

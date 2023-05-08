@@ -1,16 +1,14 @@
-import json
 import os
 from traceback import format_exc
 
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession
 from aioredis import from_url
-
-from apis.api import bp_api
-from apis.home import bp_home
 from sanic import Sanic
 from sanic import json as json_response
 from sanic.log import logger
 
+from apis.api import bp_api
+from apis.home import bp_home
 from utils import config
 from utils.common import fail, success
 from utils.log import DEFAULT_LOGGING
@@ -56,7 +54,7 @@ async def catch_anything(request, exception):
 @app.listener('before_server_start')
 async def server_start(_app: Sanic, loop) -> None:
     _app.ctx.redis = await from_url(config.REDIS_URI, decode_responses=True, socket_connect_timeout=15)
-    _app.ctx.request_session = ClientSession(loop=loop, connector=TCPConnector(ssl=False, loop=loop))
+    _app.ctx.request_session = ClientSession(loop=loop)
 
 
 @app.listener('before_server_stop')
@@ -66,4 +64,4 @@ async def server_stop(_app: Sanic, loop) -> None:
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), access_log=config.DEV, dev=False, fast=config.PROD)
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), access_log=config.DEV, dev=False, fast=config.DEV)

@@ -9,6 +9,6 @@ PROXIES_COUNT = 1
 
 REDIS_URI = os.getenv('REDIS_URI', '')
 
-ENV = os.getenv('ENV', 'PROD')
+ENV = os.getenv('ENV', 'DEV')
 DEV = ENV == 'DEV'
 PROD = ENV == 'PROD'
