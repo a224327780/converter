@@ -136,7 +136,7 @@ class ConverterSubscribe:
     async def fetch(self, url: str, method='GET', **request_config):
         try:
             request_config.setdefault('ssl', False)
-            request_config.setdefault('timeout', 20)
+            request_config.setdefault('timeout', 50)
             request_config.setdefault('headers', self.headers)
             if 'data' in request_config or 'json' in request_config:
                 method = 'POST'

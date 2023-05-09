@@ -21,11 +21,8 @@ def b64(code):
 def vmess_to_clash(vmess_data):
     tls = vmess_data.get('tls')
     tls = False if not tls or tls == 'none' else True
-    host = vmess_data.get('host')
-    if not host:
-        host = vmess_data['add']
-
-    return {
+    network = vmess_data['net']
+    data = {
         "name": vmess_data['ps'],
         "server": vmess_data['add'],
         "port": vmess_data['port'],
@@ -35,14 +32,19 @@ def vmess_to_clash(vmess_data):
         "cipher": "auto",
         "tls": tls,
         "skip-cert-verify": True,
-        "network": vmess_data['net'],
-        "ws-opts": {
+    }
+    if network == 'ws':
+        host = vmess_data['host']
+        if not host or host == 'none':
+            host = vmess_data['add']
+        data['network'] = network
+        data['ws-opts'] = {
             "path": vmess_data['path'],
             "headers": {
                 "Host": host
             }
         }
-    }
+    return data
 
 
 def to_yaml(data):
