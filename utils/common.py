@@ -21,6 +21,10 @@ def b64(code):
 def vmess_to_clash(vmess_data):
     tls = vmess_data.get('tls')
     tls = False if not tls or tls == 'none' else True
+    host = vmess_data.get('host')
+    if not host:
+        host = vmess_data['add']
+
     return {
         "name": vmess_data['ps'],
         "server": vmess_data['add'],
@@ -35,7 +39,7 @@ def vmess_to_clash(vmess_data):
         "ws-opts": {
             "path": vmess_data['path'],
             "headers": {
-                "Host": vmess_data['host']
+                "Host": host
             }
         }
     }

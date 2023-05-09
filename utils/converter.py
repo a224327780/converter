@@ -66,7 +66,7 @@ class ConverterSubscribe:
         result = []
         result_map = {}
         for _url in url.split(','):
-            name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
+            name_key = f'{self.subscribe_node_key}_{urlparse(_url).netloc}'
             # 优先取缓存
             if not is_force:
                 items = await self.redis.smembers(name_key)
@@ -78,7 +78,7 @@ class ConverterSubscribe:
             if not result_map.get(name_key):
                 response = await self.fetch(_url)
                 if not response:
-                    return []
+                    continue
 
                 html = await response.text()
                 data = await self.parse_subscribe(html)
