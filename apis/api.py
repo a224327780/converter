@@ -87,8 +87,10 @@ async def subscribe_groups(request: Request):
 @bp_api.get('/convert', name='convert')
 async def convert(request):
     url = request.args.get('url').strip()
+    is_force = request.args.get('force')
+
     url = unquote(url)
     converter = ConverterSubscribe(request.app.ctx.redis, request.app.ctx.request_session)
-    data = await converter.convert_providers(url)
+    data = await converter.convert_providers(url, is_force)
     text_data = to_yaml({'proxies': data}) if data else ''
     return text(text_data)

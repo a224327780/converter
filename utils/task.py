@@ -13,9 +13,9 @@ async def converter_subscribe_task(app):
     await asyncio.sleep(3)
     while 1:
         try:
-            # await converter.run()
-            await asyncio.sleep(1)
+            await converter.run()
+            # await asyncio.sleep(1)
         except Exception as e:
             logger.exception(e)
         finally:
-            await asyncio.sleep(3600)
+            await asyncio.sleep(3600 * 3 + 60)

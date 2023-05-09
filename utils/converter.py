@@ -60,15 +60,20 @@ class ConverterSubscribe:
                 self.logger.error(f'<Error: {e} {item}>')
         await self.redis.expire(key, 3600 * 3)
 
-    async def convert_providers(self, url: str):
+    async def convert_providers(self, url: str, is_force=None):
         result = []
+        result_map = {}
         for _url in url.split(','):
             name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
-            items = await self.redis.smembers(name_key)
-            if items:
-                for item in items:
-                    result.append(json.loads(item))
-            else:
+            # 优先取缓存
+            if not is_force:
+                items = await self.redis.smembers(name_key)
+                if items:
+                    for item in items:
+                        result.append(json.loads(item))
+                    result_map[name_key] = 1
+
+            if not result_map.get(name_key):
                 response = await self.fetch(_url)
                 if not response:
                     return []
@@ -76,7 +81,9 @@ class ConverterSubscribe:
                 html = await response.text()
                 data = await self.parse_subscribe(html)
                 if data:
+                    await self.cache_providers(name_key, data)
                     result.extend(data)
+                    result_map[name_key] = 1
         if result:
             result.sort(key=lambda k: (k.get('name', 0)))
         return result
@@ -110,7 +117,7 @@ class ConverterSubscribe:
         return data
 
     async def subscribe_fail(self, name: str, value: str, url: str):
-        fail_count = await self.redis.hset(self.subscribe_url_fail_key, url)
+        fail_count = await self.redis.hget(self.subscribe_url_fail_key, url)
         if not fail_count:
             fail_count = 0
 
@@ -122,7 +129,6 @@ class ConverterSubscribe:
             await self.notify(f'🔴<b>订阅被删除</b>\n\n{url}')
             return
 
-        self.logger.warning(f'<Error: {url}>')
         await self.redis.hset(self.subscribe_url_fail_key, url, fail_count)
 
     async def fetch(self, url: str, method='GET', **request_config):
