@@ -29,6 +29,7 @@ class ConverterSubscribe:
         self.logger.info('Start to update subscribe.')
         subscribe_data = []
         for key, value in subscribes.items():
+            self.logger.info(f'Update {key} ...')
             for url in value.split(','):
                 name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
                 data = await self.redis.exists(name_key)

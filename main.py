@@ -64,4 +64,4 @@ async def server_stop(_app: Sanic, loop) -> None:
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), access_log=config.DEV, dev=False, fast=False)
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), access_log=config.DEV, dev=config.DEV, fast=False)

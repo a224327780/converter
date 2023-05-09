@@ -1,3 +1,4 @@
+import asyncio
 import copy
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -58,7 +59,7 @@ async def subscribe(request: Request):
             provider['path'] = f'provider/{name}.yaml'
             _proxies_names.append(name)
             _proxies.append({'name': name, 'type': 'select', 'use': [name]})
-            code['proxy-providers'].append(provider)
+            code['proxy-providers'].append({name: provider})
         code['proxy-groups'].insert(2, _proxies)
         code['proxy-groups'][1]['proxies'] = _proxies_names
         code['proxy-groups'][3]['proxies'] = _proxies_names
@@ -66,6 +67,12 @@ async def subscribe(request: Request):
     if is_dev:
         code['rules'].extend(dev_rule)
     return text(to_yaml(code))
+
+
+@bp_api.signal("subscribe.groups.created")
+async def update_subscribe(**context):
+    await asyncio.sleep(1)
+    await context['converter'].run()
 
 
 @bp_api.route('/subscribes', methods=['GET', 'POST'])
@@ -81,6 +88,9 @@ async def subscribe_groups(request: Request):
                 v = v[0]
             key = key.replace('[]', '')
             await redis.hset(subscribe_groups_key, key, v)
+
+        converter = ConverterSubscribe(redis, request.app.ctx.request_session)
+        await request.app.dispatch("subscribe.groups.created", context={'converter': converter})
     return await redis.hgetall(subscribe_groups_key)
 
 
