@@ -29,11 +29,16 @@ class ConverterSubscribe:
         subscribe_data = []
         for key, value in subscribes.items():
             for url in value.split(','):
-                name = urlparse(url).netloc
+                name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
+                data = await self.redis.hgetall(name_key)
+                if data:
+                    continue
+
                 self.logger.info(f'Downloading {url} ...')
                 try:
                     response = await self.fetch(url)
                     if not response:
+                        self.logger.error(url)
                         await self.subscribe_fail(key, value, url)
                         continue
 
@@ -41,15 +46,15 @@ class ConverterSubscribe:
                     html = await response.text()
                     data = await self.parse_subscribe(html)
                     if data:
-                        await self.cache_providers(name, data)
+                        await self.cache_providers(name_key, data)
                     subscribe_data.extend(data)
                 except Exception as e:
-                    self.logger.error(f'<Error: {url} {e}>')
+                    self.logger.exception(f'<Error: {url} {e}>')
 
-    async def cache_providers(self, url, data):
-        name = f'{self.subscribe_node_key}_{url}'
+    async def cache_providers(self, name_key, data):
+        await self.redis.delete(name_key)
         for item in data:
-            await self.redis.hset(name, item['name'], json.dumps(item, ensure_ascii=False))
+            await self.redis.hset(name_key, item['name'], json.dumps(item, ensure_ascii=False))
 
     async def convert_providers(self, url: str):
         result = []
@@ -71,10 +76,10 @@ class ConverterSubscribe:
         if 'proxies' in html:
             data = yaml.safe_load(html)
             return data['proxies']
-
-        html = b64(html).decode('utf-8')
-        if 'vmess' in html:
-            return await self.parse_vmess(html)
+        if '<html' not in html:
+            html = b64(html).decode('utf-8')
+            if 'vmess' in html:
+                return await self.parse_vmess(html)
         return []
 
     async def parse_vmess(self, html):

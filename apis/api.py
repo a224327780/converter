@@ -34,8 +34,10 @@ async def subscribe(request: Request):
 
     p = Path(__file__).parent.parent / 'clash.yml'
     code = yaml.safe_load(p.read_text(encoding='utf-8'))
-    provider_template = {'interval': 7200, 'url': '', 'type': 'http', 'path': '',
-                         'health-check': {'enable': True, 'interval': 7200, 'url': test_url}}
+    provider_template = {
+        'interval': 7200, 'url': '', 'type': 'http', 'path': '',
+        'health-check': {'enable': True, 'interval': 7200, 'url': test_url}
+    }
 
     subscribe_list = await redis.hgetall(subscribe_list_key)
     if subscribe_list:
@@ -43,10 +45,8 @@ async def subscribe(request: Request):
         code['proxy-groups'] = [
             {'name': '全局选择', 'type': 'select', 'proxies': ['故障转移', '自动选择', '机场节点']},
             {'name': '机场节点', 'type': 'select', 'proxies': []},
-            {'name': '故障转移', 'type': 'fallback', 'proxies': [], 'interval': 7200,
-             'url': test_url},
-            {'name': '自动选择', 'type': 'url-test', 'use': [], 'interval': 7200,
-             'url': test_url},
+            {'name': '故障转移', 'type': 'fallback', 'proxies': [], 'interval': 7200, 'url': test_url},
+            {'name': '自动选择', 'type': 'url-test', 'use': [], 'interval': 7200, 'url': test_url},
         ]
         _proxies_names = []
         _proxies = []
