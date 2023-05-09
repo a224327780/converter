@@ -1,0 +1,10 @@
+services:
+  converter:
+    public: true
+    build:
+      context: .
+    scale: 1
+    environment:
+      - REDIS_URI=${REDIS_URI}
+    ports:
+      - 8080
