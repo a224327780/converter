@@ -26,6 +26,7 @@ class ConverterSubscribe:
             self.logger.warning('Please add a subscription.')
             return
 
+        self.logger.info('Start to update subscribe...')
         subscribe_data = []
         for key, value in subscribes.items():
             for url in value.split(','):
@@ -51,28 +52,30 @@ class ConverterSubscribe:
                 except Exception as e:
                     self.logger.exception(f'<Error: {url} {e}>')
 
-    async def cache_providers(self, name_key, data):
-        await self.redis.delete(name_key)
-        for item in data:
-            await self.redis.hset(name_key, item['name'], json.dumps(item, ensure_ascii=False))
+    async def cache_providers(self, key, data):
+        await self.redis.delete(key)
+        await self.redis.sadd(key, *data)
 
     async def convert_providers(self, url: str):
         result = []
         for _url in url.split(','):
-            # name = urlparse(url).netloc
-            # key = f'{self.subscribe_node_key}_{name}'
-            # data = await self.redis.hgetall(key)
-            response = await self.fetch(_url)
-            if not response:
-                return []
+            name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
+            data = await self.redis.smembers(name_key)
+            if not data:
+                response = await self.fetch(_url)
+                if not response:
+                    return []
 
-            html = await response.text()
-            data = await self.parse_subscribe(html)
+                html = await response.text()
+                data = await self.parse_subscribe(html)
+
             if data:
+                if type(data) != list:
+                    data = list(data)
                 result.extend(data)
         return result
 
-    async def parse_subscribe(self, html):
+    async def parse_subscribe(self, html) -> list:
         if 'proxies' in html:
             data = yaml.safe_load(html)
             return data['proxies']
@@ -82,7 +85,7 @@ class ConverterSubscribe:
                 return await self.parse_vmess(html)
         return []
 
-    async def parse_vmess(self, html):
+    async def parse_vmess(self, html) -> list:
         node_items = html.split('\n')
         data = []
         for node_item in node_items:

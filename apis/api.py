@@ -10,7 +10,8 @@ from sanic.log import logger
 from utils.common import serializer, to_yaml
 from utils.converter import ConverterSubscribe
 
-subscribe_list_key = 'subscribe_groups'
+subscribe_groups_key = 'subscribe_groups'
+
 bp_api = Blueprint('api', url_prefix='/api')
 dev_rule = [
     'DOMAIN-KEYWORD,qq,全局选择',
@@ -39,7 +40,7 @@ async def subscribe(request: Request):
         'health-check': {'enable': True, 'interval': 7200, 'url': test_url}
     }
 
-    subscribe_list = await redis.hgetall(subscribe_list_key)
+    subscribe_list = await redis.hgetall(subscribe_groups_key)
     if subscribe_list:
         code['proxy-providers'] = []
         code['proxy-groups'] = [
@@ -80,8 +81,8 @@ async def subscribe_groups(request: Request):
             else:
                 v = v[0]
             key = key.replace('[]', '')
-            await redis.hset(subscribe_list_key, key, v)
-    return await redis.hgetall(subscribe_list_key)
+            await redis.hset(subscribe_groups_key, key, v)
+    return await redis.hgetall(subscribe_groups_key)
 
 
 @bp_api.get('/convert', name='convert')
