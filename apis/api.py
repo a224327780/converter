@@ -53,7 +53,6 @@ async def subscribe(request: Request):
         _proxies = []
         for name, value in subscribe_list.items():
             value = quote(value, safe='')
-            logger.info(f'{name} {value}')
             provider = copy.deepcopy(provider_template)
             provider['url'] = request.url_for(f'api.convert', url=value)
             provider['path'] = f'provider/{name}.yaml'

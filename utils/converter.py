@@ -31,7 +31,7 @@ class ConverterSubscribe:
         for key, value in subscribes.items():
             for url in value.split(','):
                 name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
-                data = await self.redis.hgetall(name_key)
+                data = await self.redis.exists(name_key)
                 if data:
                     continue
 
@@ -39,7 +39,6 @@ class ConverterSubscribe:
                 try:
                     response = await self.fetch(url)
                     if not response:
-                        self.logger.error(url)
                         await self.subscribe_fail(key, value, url)
                         continue
 
@@ -54,28 +53,35 @@ class ConverterSubscribe:
 
     async def cache_providers(self, key, data):
         await self.redis.delete(key)
-        await self.redis.sadd(key, *data)
+        for item in data:
+            try:
+                await self.redis.sadd(key, json.dumps(item, ensure_ascii=False))
+            except Exception as e:
+                self.logger.error(f'<Error: {e} {item}>')
+        await self.redis.expire(key, 3600 * 3)
 
     async def convert_providers(self, url: str):
         result = []
         for _url in url.split(','):
             name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
-            data = await self.redis.smembers(name_key)
-            if not data:
+            items = await self.redis.smembers(name_key)
+            if items:
+                for item in items:
+                    result.append(json.loads(item))
+            else:
                 response = await self.fetch(_url)
                 if not response:
                     return []
 
                 html = await response.text()
                 data = await self.parse_subscribe(html)
-
-            if data:
-                if type(data) != list:
-                    data = list(data)
-                result.extend(data)
+                if data:
+                    result.extend(data)
+        if result:
+            result.sort(key=lambda k: (k.get('name', 0)))
         return result
 
-    async def parse_subscribe(self, html) -> list:
+    async def parse_subscribe(self, html):
         if 'proxies' in html:
             data = yaml.safe_load(html)
             return data['proxies']
@@ -115,6 +121,8 @@ class ConverterSubscribe:
             await self.redis.hdel(self.subscribe_url_fail_key, url)
             await self.notify(f'🔴<b>订阅被删除</b>\n\n{url}')
             return
+
+        self.logger.warning(f'<Error: {url}>')
         await self.redis.hset(self.subscribe_url_fail_key, url, fail_count)
 
     async def fetch(self, url: str, method='GET', **request_config):
