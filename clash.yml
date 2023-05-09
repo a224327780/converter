@@ -22,7 +22,7 @@ dns:
     geoip-code: CN
     ipcidr:
       - 240.0.0.0/4
-proxy-providers: []
+proxy-providers: {}
 
 proxy-groups: []
 rules:

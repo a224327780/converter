@@ -43,7 +43,7 @@ async def subscribe(request: Request):
 
     subscribe_list = await redis.hgetall(subscribe_groups_key)
     if subscribe_list:
-        code['proxy-providers'] = []
+        code['proxy-providers'] = {}
         code['proxy-groups'] = [
             {'name': '全局选择', 'type': 'select', 'proxies': ['故障转移', '自动选择', '机场节点']},
             {'name': '机场节点', 'type': 'select', 'proxies': []},
@@ -51,19 +51,20 @@ async def subscribe(request: Request):
             {'name': '自动选择', 'type': 'url-test', 'use': [], 'interval': 7200, 'url': test_url},
         ]
         _proxies_names = []
-        _proxies = []
+        i = 2
         for name, value in subscribe_list.items():
             value = quote(value, safe='')
             provider = copy.deepcopy(provider_template)
             provider['url'] = request.url_for(f'api.convert', url=value)
-            provider['path'] = f'provider/{name}.yaml'
+            provider['path'] = f'provider1/{name}.yaml'
             _proxies_names.append(name)
-            _proxies.append({'name': name, 'type': 'select', 'use': [name]})
-            code['proxy-providers'].append({name: provider})
-        code['proxy-groups'].insert(2, _proxies)
+            code['proxy-providers'][name] = provider
+
+            code['proxy-groups'].insert(i, {'name': name, 'type': 'select', 'use': [name]})
+            i += 1
         code['proxy-groups'][1]['proxies'] = _proxies_names
-        code['proxy-groups'][3]['proxies'] = _proxies_names
-        code['proxy-groups'][4]['use'] = _proxies_names
+        code['proxy-groups'][-2]['proxies'] = _proxies_names
+        code['proxy-groups'][-1]['use'] = _proxies_names
     if is_dev:
         code['rules'].extend(dev_rule)
     return text(to_yaml(code))
