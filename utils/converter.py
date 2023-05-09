@@ -26,7 +26,7 @@ class ConverterSubscribe:
             self.logger.warning('Please add a subscription.')
             return
 
-        self.logger.info('Start to update subscribe...')
+        self.logger.info('Start to update subscribe.')
         subscribe_data = []
         for key, value in subscribes.items():
             for url in value.split(','):
@@ -50,6 +50,7 @@ class ConverterSubscribe:
                     subscribe_data.extend(data)
                 except Exception as e:
                     self.logger.exception(f'<Error: {url} {e}>')
+        self.logger.info('Finish to update subscribe.')
 
     async def cache_providers(self, key, data):
         await self.redis.delete(key)

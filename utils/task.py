@@ -18,4 +18,4 @@ async def converter_subscribe_task(app):
         except Exception as e:
             logger.exception(e)
         finally:
-            await asyncio.sleep(3600 * 3 + 60)
+            await asyncio.sleep(3600 + 60)
