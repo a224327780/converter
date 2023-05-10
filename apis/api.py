@@ -117,3 +117,22 @@ async def refresh_subscribe(request):
     converter = ConverterSubscribe(redis, request.app.ctx.request_session)
     await request.app.dispatch("subscribe.groups.created", context={'converter': converter, 'force': True})
     return []
+
+
+@bp_api.get('/proxy-pass')
+async def proxy_pass(request):
+    url = request.args.get('url')
+    html = ''
+    status_code = 500
+    if url:
+        url = unquote(url).strip()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36'
+        }
+        try:
+            response = await request.app.ctx.request_session.get(url, timeout=20, heaers=headers)
+            status_code = response.status
+            html = await response.text()
+        except Exception as e:
+            logger.error(e)
+    return text(html, status_code)
