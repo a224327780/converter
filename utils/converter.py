@@ -20,7 +20,7 @@ class ConverterSubscribe:
         self.subscribe_url_fail_key = 'subscribe_groups_fail'
         self.subscribe_node_key = 'subscribe_node'
 
-    async def run(self):
+    async def run(self, force=False):
         subscribes = await self.redis.hgetall('subscribe_groups')
         if not subscribes:
             self.logger.warning('Please add a subscription.')
@@ -33,7 +33,7 @@ class ConverterSubscribe:
             for url in value.split(','):
                 name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
                 data = await self.redis.exists(name_key)
-                if data:
+                if data and not force:
                     continue
 
                 self.logger.info(f'Downloading {url} ...')

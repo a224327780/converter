@@ -72,15 +72,18 @@ async def subscribe(request: Request):
 
 @bp_api.signal("subscribe.groups.created")
 async def update_subscribe(**context):
+    logger.info('signal subscribe.groups.created')
+    force = context.get('force', False)
     await asyncio.sleep(1)
-    await context['converter'].run()
+    await context['converter'].run(force)
 
 
 @bp_api.route('/subscribes', methods=['GET', 'POST'])
 @serializer()
 async def subscribe_groups(request: Request):
     redis: Redis = request.app.ctx.redis
-    if request.method == 'POST':
+    if request.method == 'POST' and len(request.form):
+        await redis.delete(subscribe_groups_key)
         for key in request.form:
             v = request.form.getlist(key)
             if len(v) > 1:
@@ -105,3 +108,12 @@ async def convert(request):
     data = await converter.convert_providers(url, is_force)
     text_data = to_yaml({'proxies': data}) if data else ''
     return text(text_data)
+
+
+@bp_api.get('/refresh')
+@serializer()
+async def refresh_subscribe(request):
+    redis: Redis = request.app.ctx.redis
+    converter = ConverterSubscribe(redis, request.app.ctx.request_session)
+    await request.app.dispatch("subscribe.groups.created", context={'converter': converter, 'force': True})
+    return []
