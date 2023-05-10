@@ -13,7 +13,7 @@ async def converter_subscribe_task(app):
     await asyncio.sleep(3)
     while 1:
         try:
-            await converter.run()
+            await converter.run(False)
             # await asyncio.sleep(1)
         except Exception as e:
             logger.exception(e)

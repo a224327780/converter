@@ -134,7 +134,7 @@ async def proxy_pass(request):
 
     html = ''
     try:
-        response = await request.app.ctx.request_session.get(url, timeout=20, headers=headers)
+        response = await request.app.ctx.request_session.get(url, timeout=60, headers=headers, ssl=False)
         status_code = response.status
         html = await response.text()
     except Exception as e:
