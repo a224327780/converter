@@ -12,8 +12,6 @@ from utils.common import serializer, to_yaml
 from utils.converter import ConverterSubscribe
 
 subscribe_groups_key = 'subscribe_groups'
-
-bp_api = Blueprint('api', url_prefix='/api')
 dev_rule = [
     'DOMAIN-KEYWORD,qq,全局选择',
     'DOMAIN-KEYWORD,weixin,全局选择',
@@ -27,9 +25,11 @@ dev_rule = [
     'DOMAIN-KEYWORD,360.cn,全局选择'
 ]
 
+bp_api = Blueprint('api', url_prefix='/api')
 
-@bp_api.get('/subscribe')
-async def subscribe(request: Request):
+
+@bp_api.get('/subscribe', name='get_subscribe')
+async def get_subscribe(request: Request):
     redis: Redis = request.app.ctx.redis
     is_dev = request.args.get('dev')
     test_url = 'http://www.gstatic.com/generate_204'
@@ -99,11 +99,13 @@ async def subscribe_groups(request: Request):
 
 
 @bp_api.get('/convert', name='convert')
-async def convert(request):
-    url = request.args.get('url').strip()
-    is_force = request.args.get('force')
+async def convert_subscribe(request):
+    url = request.args.get('url')
+    if not url:
+        return text('')
 
-    url = unquote(url)
+    is_force = request.args.get('force')
+    url = unquote(url).strip()
     converter = ConverterSubscribe(request.app.ctx.redis, request.app.ctx.request_session)
     data = await converter.convert_providers(url, is_force)
     text_data = to_yaml({'proxies': data}) if data else ''
@@ -122,17 +124,20 @@ async def refresh_subscribe(request):
 @bp_api.get('/proxy-pass')
 async def proxy_pass(request):
     url = request.args.get('url')
+    if not url:
+        url = 'https://api.ipify.org/'
+
+    url = unquote(url).strip()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36'
+    }
+
     html = ''
-    status_code = 500
-    if url:
-        url = unquote(url).strip()
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36'
-        }
-        try:
-            response = await request.app.ctx.request_session.get(url, timeout=20, heaers=headers)
-            status_code = response.status
-            html = await response.text()
-        except Exception as e:
-            logger.error(e)
+    try:
+        response = await request.app.ctx.request_session.get(url, timeout=20, headers=headers)
+        status_code = response.status
+        html = await response.text()
+    except Exception as e:
+        status_code = 500
+        logger.error(e)
     return text(html, status_code)
