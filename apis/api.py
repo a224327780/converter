@@ -33,7 +33,8 @@ async def get_subscribe(request: Request):
     redis: Redis = request.app.ctx.redis
     is_dev = request.args.get('dev')
     test_url = 'http://www.gstatic.com/generate_204'
-    logger.info(request.headers)
+    user_agent = request.headers.get('user-agent', '').lower()
+    logger.info(user_agent)
 
     p = Path(__file__).parent.parent / 'clash.yml'
     code = yaml.safe_load(p.read_text(encoding='utf-8'))
@@ -54,6 +55,8 @@ async def get_subscribe(request: Request):
         _proxies_names = []
         i = 2
         for name, value in subscribe_list.items():
+            if user_agent and 'meta' not in user_agent and 'bestapis' in value:
+                continue
             value = quote(value, safe='')
             provider = copy.deepcopy(provider_template)
             provider['url'] = request.url_for(f'api.convert', url=value)
