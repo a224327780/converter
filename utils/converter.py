@@ -57,7 +57,7 @@ class ConverterSubscribe:
         await self.redis.delete(key)
         for item in data:
             name = item.get('name')
-            if namea and 'ipv6' in name:
+            if name and 'ipv6' in name:
                 continue
             try:
                 await self.redis.sadd(key, json.dumps(item, ensure_ascii=False))
