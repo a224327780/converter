@@ -33,6 +33,7 @@ async def get_subscribe(request: Request):
     redis: Redis = request.app.ctx.redis
     is_dev = request.args.get('dev')
     test_url = 'http://www.gstatic.com/generate_204'
+    logger.info(request.headers)
 
     p = Path(__file__).parent.parent / 'clash.yml'
     code = yaml.safe_load(p.read_text(encoding='utf-8'))
@@ -125,7 +126,7 @@ async def refresh_subscribe(request):
 async def proxy_pass(request):
     url = request.args.get('url')
     if not url:
-        url = 'https://api.ipify.org/'
+        url = 'https://httpbin.org/ip'
 
     url = unquote(url).strip()
     headers = {
@@ -134,7 +135,7 @@ async def proxy_pass(request):
 
     html = ''
     try:
-        response = await request.app.ctx.request_session.get(url, timeout=60, headers=headers, ssl=False)
+        response = await request.app.ctx.request_session.get(url, timeout=40, headers=headers, ssl=False)
         status_code = response.status
         html = await response.text()
     except Exception as e:

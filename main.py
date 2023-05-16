@@ -1,7 +1,7 @@
 import os
 from traceback import format_exc
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector
 from aioredis import from_url
 from sanic import Sanic
 from sanic import json as json_response
@@ -54,7 +54,7 @@ async def catch_anything(request, exception):
 @app.listener('before_server_start')
 async def server_start(_app: Sanic, loop) -> None:
     _app.ctx.redis = await from_url(config.REDIS_URI, decode_responses=True, socket_connect_timeout=15)
-    _app.ctx.request_session = ClientSession(loop=loop)
+    _app.ctx.request_session = ClientSession(loop=loop, connector=TCPConnector(ssl=False))
 
 
 @app.listener('before_server_stop')
