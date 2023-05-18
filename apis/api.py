@@ -70,7 +70,8 @@ async def get_subscribe(request: Request):
         code['proxy-groups'][-2]['proxies'] = _proxies_names
         code['proxy-groups'][-1]['use'] = _proxies_names
     if is_dev:
-        code['rules'].extend(dev_rule)
+        for rule in dev_rule:
+            code['rules'].insert(0, rule)
     return text(to_yaml(code))
 
 
