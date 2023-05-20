@@ -63,7 +63,7 @@ class ConverterSubscribe:
                 await self.redis.sadd(key, json.dumps(item, ensure_ascii=False))
             except Exception as e:
                 self.logger.error(f'<Error: {e} {item}>')
-        await self.redis.expire(key, 3600 * 3)
+        await self.redis.expire(key, 3600 * 6)
 
     async def convert_providers(self, url: str, is_force=None):
         result = []

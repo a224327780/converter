@@ -28,6 +28,7 @@ proxy-groups: []
 rules:
   - DOMAIN-SUFFIX,smtp,DIRECT
   - DOMAIN-KEYWORD,aria2,DIRECT
+  - DOMAIN-KEYWORD,cjy.me,全局选择
   - DOMAIN-SUFFIX,ampproject.org,全局选择
   - DOMAIN-SUFFIX,appspot.com,全局选择
   - DOMAIN-SUFFIX,blogger.com,全局选择
