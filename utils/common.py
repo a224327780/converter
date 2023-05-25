@@ -10,10 +10,13 @@ from sanic import HTTPResponse, Request, response
 from sanic.response import ResponseStream
 
 
-def b64(code):
-    code = code.ljust(int(math.ceil(len(code) / 4)) * 4, '=')
+def b64(data: str) -> str:
     try:
-        return base64.b64decode(code)
+        data = data.encode('ascii')
+        rem = len(data) % 4
+        if rem > 0:
+            data += b"=" * (4 - rem)
+        return base64.urlsafe_b64decode(data).decode('utf-8')
     except ValueError:
         return None
 
