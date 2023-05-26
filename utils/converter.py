@@ -98,7 +98,7 @@ class ConverterSubscribe:
             data = yaml.safe_load(html)
             return data['proxies']
         if '<html' not in html:
-            html = b64(html).decode('utf-8')
+            html = b64(html)
             if 'vmess' in html:
                 return await self.parse_vmess(html)
         return []
