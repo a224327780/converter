@@ -116,7 +116,7 @@ class ConverterSubscribe:
                 self.logger.warning(f'<Error: {node_item} >')
                 continue
 
-            node = json.loads(node.decode('utf-8'))
+            node = json.loads(node)
             node = vmess_to_clash(node)
             data.append(node)
         return data
