@@ -59,7 +59,7 @@ async def get_subscribe(request: Request):
                 continue
             value = quote(value, safe='')
             provider = copy.deepcopy(provider_template)
-            provider['url'] = request.url_for(f'api.convert', url=value)
+            provider['url'] = request.url_for(f'api.convert', url=value, name=name)
             provider['path'] = f'provider1/{name}.yaml'
             _proxies_names.append(name)
             code['proxy-providers'][name] = provider
@@ -106,13 +106,14 @@ async def subscribe_groups(request: Request):
 @bp_api.get('/convert', name='convert')
 async def convert_subscribe(request):
     url = request.args.get('url')
+    name = request.args.get('name')
     if not url:
         return text('')
 
     is_force = request.args.get('force')
     url = unquote(url).strip()
     converter = ConverterSubscribe(request.app.ctx.redis, request.app.ctx.request_session)
-    data = await converter.convert_providers(url, is_force)
+    data = await converter.convert_providers(url, is_force, name=name)
     text_data = to_yaml({'proxies': data}) if data else ''
     return text(text_data)
 

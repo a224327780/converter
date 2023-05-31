@@ -29,9 +29,9 @@ class ConverterSubscribe:
         self.logger.info('Start to update subscribe.')
         subscribe_data = []
         for key, value in subscribes.items():
-            self.logger.info(f'Update {key} ...')
+            # self.logger.info(f'Update {key} ...')
             for url in value.split(','):
-                name_key = f'{self.subscribe_node_key}_{urlparse(url).netloc}'
+                name_key = f'{self.subscribe_node_key}_{key}'
                 data = await self.redis.exists(name_key)
                 if data and not force:
                     continue
@@ -65,11 +65,13 @@ class ConverterSubscribe:
                 self.logger.error(f'<Error: {e} {item}>')
         await self.redis.expire(key, 3600 * 6)
 
-    async def convert_providers(self, url: str, is_force=None):
+    async def convert_providers(self, url: str, is_force=None, name=None):
         result = []
         result_map = {}
         for _url in url.split(','):
             name_key = f'{self.subscribe_node_key}_{urlparse(_url).netloc}'
+            if name:
+                name_key = f'{self.subscribe_node_key}_{name}'
             # 优先取缓存
             if not is_force:
                 items = await self.redis.smembers(name_key)
