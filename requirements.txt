@@ -3,3 +3,4 @@ pyyaml
 aiohttp
 python-dotenv
 aioredis
+pyquery
