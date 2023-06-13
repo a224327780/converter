@@ -2,8 +2,10 @@ import asyncio
 import json
 import logging
 import os
+import re
 from urllib.parse import urlparse
 
+import pyquery
 import yaml
 from aioredis import Redis
 
@@ -33,19 +35,21 @@ class ConverterSubscribe:
             for url in value.split(','):
                 name_key = f'{self.subscribe_node_key}_{key}'
                 data = await self.redis.exists(name_key)
-                if data and not force:
+                if data and not force and 'cjy.me' not in url:
                     continue
 
                 self.logger.info(f'Downloading {url} ...')
                 try:
-                    response = await self.fetch(url)
-                    if not response:
-                        await self.subscribe_fail(key, value, url)
-                        continue
-
-                    await self.redis.hdel(self.subscribe_url_fail_key, url)
-                    html = await response.text()
-                    data = await self.parse_subscribe(html)
+                    if 'cjy.me' in url:
+                        data = await self.get_node_list()
+                        data = await self.parse_vmess('\n'.join(data))
+                    else:
+                        response = await self.fetch(url)
+                        if not response:
+                            continue
+                        await self.redis.hdel(self.subscribe_url_fail_key, url)
+                        html = await response.text()
+                        data = await self.parse_subscribe(html)
                     if data:
                         await self.cache_providers(name_key, data)
                     subscribe_data.extend(data)
@@ -81,12 +85,16 @@ class ConverterSubscribe:
                     result_map[name_key] = 1
 
             if not result_map.get(name_key):
-                response = await self.fetch(_url)
-                if not response:
-                    continue
+                if 'cjy.me' in _url:
+                    data = await self.get_node_list()
+                    data = await self.parse_vmess('\n'.join(data))
+                else:
+                    response = await self.fetch(_url)
+                    if not response:
+                        continue
 
-                html = await response.text()
-                data = await self.parse_subscribe(html)
+                    html = await response.text()
+                    data = await self.parse_subscribe(html)
                 if data:
                     await self.cache_providers(name_key, data)
                     result.extend(data)
@@ -123,21 +131,6 @@ class ConverterSubscribe:
             data.append(node)
         return data
 
-    async def subscribe_fail(self, name: str, value: str, url: str):
-        fail_count = await self.redis.hget(self.subscribe_url_fail_key, url)
-        if not fail_count:
-            fail_count = 0
-
-        fail_count = int(fail_count) + 1
-        if fail_count >= 48:
-            value = value.replace(url, '').strip(',')
-            await self.redis.hset('subscribe_groups', name, value)
-            await self.redis.hdel(self.subscribe_url_fail_key, url)
-            await self.notify(f'🔴<b>订阅被删除</b>\n\n{url}')
-            return
-
-        await self.redis.hset(self.subscribe_url_fail_key, url, fail_count)
-
     async def fetch(self, url: str, method='GET', **request_config):
         try:
             request_config.setdefault('ssl', False)
@@ -161,3 +154,51 @@ class ConverterSubscribe:
         api = f'https://api.telegram.org/bot{key}/sendMessage'
         data = {'text': message, 'chat_id': chat_id, 'parse_mode': 'HTML'}
         return await self.fetch(api, data=data)
+
+    async def login(self, username, password):
+        self.logger.info('start login.')
+        base_url = 'https://share.cjy.me'
+        login_url = f'{base_url}/mjj6/'
+        response = await self.fetch(f'{base_url}/mjj6')
+        html = await response.text()
+        token_re = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', html)
+        token = token_re.group(1)
+        params = {'csrfmiddlewaretoken': token, 'username': username, 'password': password}
+        self.headers['Referer'] = login_url
+
+        await asyncio.sleep(2)
+
+        response = await self.fetch(login_url, data=params, allow_redirects=False)
+        if 'location' in response.headers and 'userinfo' in response.headers['location']:
+            cookie = [f"{k}={v.value}" for k, v in response.cookies.items()]
+            return ';'.join(cookie)
+        return None
+
+    async def get_node_list(self):
+        cookie_key = 'share_cjy_me_cookie'
+        cookie = await self.redis.get(cookie_key)
+        if not cookie:
+            cookie = await self.login('caoyufei', 'hack3321')
+            if not cookie:
+                self.logger.error('<Error: login failed>')
+                return []
+            await self.redis.set(cookie_key, cookie, ex=3600 * 24)
+        self.headers['Cookie'] = cookie
+
+        response = await self.fetch(f'https://share.cjy.me/nodeinfo')
+        if not response:
+            await self.redis.delete(cookie_key)
+            return []
+
+        html = await response.text()
+        doc = pyquery.PyQuery(html)
+        nodes = doc('.node-cell').items()
+        data = []
+        for node in nodes:
+            title_class = node.find('.card-header-title span').attr('class')
+            if 'is-danger' in title_class:
+                continue
+            vmess = node.find('.modal a').attr('href')
+            data.append(vmess)
+        self.logger.info(f'cjy node {len(data)}')
+        return data

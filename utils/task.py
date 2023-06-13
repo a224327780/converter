@@ -14,8 +14,6 @@ async def converter_subscribe_task(app):
     while 1:
         try:
             await converter.run(False)
-            # await asynci
-            # o.sleep(1)
         except Exception as e:
             logger.exception(e)
         finally:
