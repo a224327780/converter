@@ -2,10 +2,7 @@ import asyncio
 import json
 import logging
 import os
-import re
-from urllib.parse import urlparse
 
-import pyquery
 import yaml
 from aioredis import Redis
 
@@ -18,90 +15,56 @@ class ConverterSubscribe:
         self.redis = redis
         self.request_session = request_session
         self.logger = logging.getLogger('sanic.root')
-        self.headers = {'User-Agent': 'ClashMetaForAndroid/2.7.1.Meta-Alpha (Prefer ClashMeta Format)'}
-        self.subscribe_url_fail_key = 'subscribe_groups_fail'
+        self.headers = {'User-Agent': 'clash-verge/v1.6.6.Meta'}
         self.subscribe_node_key = 'subscribe_node'
+        self.subscribe_key = 'subscribes'
+
+    async def init_subscribe(self):
+        await self.redis.delete(self.subscribe_key)
 
     async def run(self, force=False):
-        subscribes = await self.redis.hgetall('subscribe_groups')
+        subscribes = await self.redis.hgetall(self.subscribe_key)
         if not subscribes:
             self.logger.warning('Please add a subscription.')
             return
 
         self.logger.info('Start to update subscribe.')
-        subscribe_data = []
-        for key, value in subscribes.items():
-            # self.logger.info(f'Update {key} ...')
-            for url in value.split(','):
-                name_key = f'{self.subscribe_node_key}_{key}'
-                data = await self.redis.exists(name_key)
-                if data and not force and 'cjy.me' not in url:
+        for name, url in subscribes.items():
+            data = await self.redis.hget(self.subscribe_node_key, name)
+            if data and not force:
+                self.logger.info(name)
+                continue
+
+            self.logger.info(f'Downloading {url}')
+            try:
+                response = await self.fetch(url)
+                if not response:
                     continue
 
-                self.logger.info(f'Downloading {url} ...')
-                try:
-                    if 'cjy.me' in url:
-                        data = await self.get_node_list()
-                        data = await self.parse_vmess('\n'.join(data))
-                    else:
-                        response = await self.fetch(url)
-                        if not response:
-                            continue
-                        await self.redis.hdel(self.subscribe_url_fail_key, url)
-                        html = await response.text()
-                        data = await self.parse_subscribe(html)
-                    if data:
-                        await self.cache_providers(name_key, data)
-                    subscribe_data.extend(data)
-                except Exception as e:
-                    self.logger.exception(f'<Error: {url} {e}>')
+                html = await response.text()
+                data = await self.parse_subscribe(html)
+                if data:
+                    await self.redis.hset(self.subscribe_node_key, name, json.dumps(data, ensure_ascii=False))
+            except Exception as e:
+                self.logger.exception(f'<Error: {url} {e}>')
         self.logger.info('Finish to update subscribe.')
 
-    async def cache_providers(self, key, data):
-        await self.redis.delete(key)
-        for item in data:
-            name = item.get('name')
-            if name and 'ipv6' in name:
-                continue
-            try:
-                await self.redis.sadd(key, json.dumps(item, ensure_ascii=False))
-            except Exception as e:
-                self.logger.error(f'<Error: {e} {item}>')
-        await self.redis.expire(key, 3600 * 6)
+    async def convert_providers(self, url: str, name: str, is_force=None):
+        # 优先取缓存
+        if not is_force:
+            data = await self.redis.hget(self.subscribe_node_key, name)
+        else:
+            response = await self.fetch(url)
+            if not response:
+                return None
 
-    async def convert_providers(self, url: str, is_force=None, name=None):
-        result = []
-        result_map = {}
-        for _url in url.split(','):
-            name_key = f'{self.subscribe_node_key}_{urlparse(_url).netloc}'
-            if name:
-                name_key = f'{self.subscribe_node_key}_{name}'
-            # 优先取缓存
-            if not is_force:
-                items = await self.redis.smembers(name_key)
-                if items:
-                    for item in items:
-                        result.append(json.loads(item))
-                    result_map[name_key] = 1
-
-            if not result_map.get(name_key):
-                if 'cjy.me' in _url:
-                    data = await self.get_node_list()
-                    data = await self.parse_vmess('\n'.join(data))
-                else:
-                    response = await self.fetch(_url)
-                    if not response:
-                        continue
-
-                    html = await response.text()
-                    data = await self.parse_subscribe(html)
-                if data:
-                    await self.cache_providers(name_key, data)
-                    result.extend(data)
-                    result_map[name_key] = 1
-        if result:
-            result.sort(key=lambda k: (k.get('name', 0)))
-        return result
+            html = await response.text()
+            data = await self.parse_subscribe(html)
+            if data:
+                await self.redis.hset(self.subscribe_node_key, name, json.dumps(data, ensure_ascii=False))
+        if data:
+            data.sort(key=lambda k: (k.get('name', 0)))
+        return data
 
     async def parse_subscribe(self, html):
         if 'proxies' in html:
@@ -134,7 +97,7 @@ class ConverterSubscribe:
     async def fetch(self, url: str, method='GET', **request_config):
         try:
             request_config.setdefault('ssl', False)
-            request_config.setdefault('timeout', 50)
+            request_config.setdefault('timeout', 30)
             request_config.setdefault('headers', self.headers)
             if 'data' in request_config or 'json' in request_config:
                 method = 'POST'
@@ -154,51 +117,3 @@ class ConverterSubscribe:
         api = f'https://api.telegram.org/bot{key}/sendMessage'
         data = {'text': message, 'chat_id': chat_id, 'parse_mode': 'HTML'}
         return await self.fetch(api, data=data)
-
-    async def login(self, username, password):
-        self.logger.info('start login.')
-        base_url = 'https://share.cjy.me'
-        login_url = f'{base_url}/mjj6/'
-        response = await self.fetch(f'{base_url}/mjj6')
-        html = await response.text()
-        token_re = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', html)
-        token = token_re.group(1)
-        params = {'csrfmiddlewaretoken': token, 'username': username, 'password': password}
-        self.headers['Referer'] = login_url
-
-        await asyncio.sleep(2)
-
-        response = await self.fetch(login_url, data=params, allow_redirects=False)
-        if 'location' in response.headers and 'userinfo' in response.headers['location']:
-            cookie = [f"{k}={v.value}" for k, v in response.cookies.items()]
-            return ';'.join(cookie)
-        return None
-
-    async def get_node_list(self):
-        cookie_key = 'share_cjy_me_cookie'
-        cookie = await self.redis.get(cookie_key)
-        if not cookie:
-            cookie = await self.login('caoyufei', 'hack3321')
-            if not cookie:
-                self.logger.error('<Error: login failed>')
-                return []
-            await self.redis.set(cookie_key, cookie, ex=3600 * 24)
-        self.headers['Cookie'] = cookie
-
-        response = await self.fetch(f'https://share.cjy.me/nodeinfo')
-        if not response:
-            await self.redis.delete(cookie_key)
-            return []
-
-        html = await response.text()
-        doc = pyquery.PyQuery(html)
-        nodes = doc('.node-cell').items()
-        data = []
-        for node in nodes:
-            title_class = node.find('.card-header-title span').attr('class')
-            if 'is-danger' in title_class:
-                continue
-            vmess = node.find('.modal a').attr('href')
-            data.append(vmess)
-        self.logger.info(f'cjy node {len(data)}')
-        return data

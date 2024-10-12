@@ -2,7 +2,6 @@ import os
 from traceback import format_exc
 
 from aiohttp import ClientSession, TCPConnector
-from aioredis import from_url
 from sanic import Sanic
 from sanic import json as json_response
 from sanic.log import logger
@@ -11,10 +10,11 @@ from apis.api import bp_api
 from apis.home import bp_home
 from utils import config
 from utils.common import fail, success
+from utils.converter import ConverterSubscribe
 from utils.log import DEFAULT_LOGGING
 from utils.task import converter_subscribe_task
 
-app = Sanic('scylla', log_config=DEFAULT_LOGGING)
+app = Sanic('converter', log_config=DEFAULT_LOGGING)
 app.config.update_config(config)
 
 app.static('/favicon.ico', 'static/favicon.png')
@@ -53,14 +53,16 @@ async def catch_anything(request, exception):
 
 @app.listener('before_server_start')
 async def server_start(_app: Sanic, loop) -> None:
-    _app.ctx.redis = await from_url(config.REDIS_URI, decode_responses=True, socket_connect_timeout=15)
+    import aioredis
+    _app.ctx.redis = await aioredis.from_url(config.REDIS_URI, decode_responses=True, socket_connect_timeout=15)
     _app.ctx.request_session = ClientSession(loop=loop, connector=TCPConnector(ssl=False))
+    _app.ctx.converter = ConverterSubscribe(_app.ctx.redis, _app.ctx.request_session)
 
 
 @app.listener('before_server_stop')
 async def server_stop(_app: Sanic, loop) -> None:
     await _app.ctx.redis.close()
-    await _app.ctx.request_session.close()
+    # await _app.ctx.request_session.close()
 
 
 if __name__ == "__main__":
