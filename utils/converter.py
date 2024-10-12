@@ -53,6 +53,7 @@ class ConverterSubscribe:
         # 优先取缓存
         if not is_force:
             data = await self.redis.hget(self.subscribe_node_key, name)
+            data = json.loads(data)
         else:
             response = await self.fetch(url)
             if not response:
@@ -62,7 +63,7 @@ class ConverterSubscribe:
             data = await self.parse_subscribe(html)
             if data:
                 await self.redis.hset(self.subscribe_node_key, name, json.dumps(data, ensure_ascii=False))
-        if data:
+        if data and isinstance(data, list):
             data.sort(key=lambda k: (k.get('name', 0)))
         return data
 
