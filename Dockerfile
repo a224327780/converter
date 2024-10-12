@@ -6,4 +6,4 @@ COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt && python --version
 
-CMD ["python", "main.py"]
+CMD ["python", "application.py"]

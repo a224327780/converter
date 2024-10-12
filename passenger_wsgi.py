@@ -1,4 +1,6 @@
-import sys, os
+import sys
+import os
 
 sys.path.append(os.getcwd())
-from main import app as application
+
+from application import app as application
