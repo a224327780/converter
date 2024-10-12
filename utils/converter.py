@@ -111,9 +111,3 @@ class ConverterSubscribe:
         except Exception as e:
             self.logger.error(f"<Error: {url} {e}>")
         return None
-
-    async def notify(self, message, chat_id='-1001835884416'):
-        key = os.getenv('API_KEY')
-        api = f'https://api.telegram.org/bot{key}/sendMessage'
-        data = {'text': message, 'chat_id': chat_id, 'parse_mode': 'HTML'}
-        return await self.fetch(api, data=data)
