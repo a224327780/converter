@@ -35,8 +35,6 @@ async def get_subscribe(request: Request):
 
     is_dev = request.args.get('dev')
     test_url = 'http://www.gstatic.com/generate_204'
-    user_agent = request.headers.get('user-agent', '').lower()
-    logger.info(user_agent)
 
     p = Path(__file__).parent.parent / 'clash.yml'
     code = yaml.safe_load(p.read_text(encoding='utf-8'))
@@ -118,7 +116,7 @@ async def convert_subscribe(request):
 @serializer()
 async def refresh_subscribe(request):
     converter: ConverterSubscribe = request.app.ctx.converter
-    await request.app.dispatch("subscribe.groups.created", context={'converter': converter, 'force': True})
+    await request.app.dispatch("subscribe.created.update", context={'converter': converter, 'force': True})
     return []
 
 
