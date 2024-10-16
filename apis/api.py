@@ -106,6 +106,7 @@ async def convert_subscribe(request):
 
     is_force = request.args.get('force')
     url = unquote(url).strip()
+    logger.info(url)
     converter: ConverterSubscribe = request.app.ctx.converter
     data = await converter.convert_providers(url, name, is_force)
     text_data = to_yaml({'proxies': data}) if data else ''
