@@ -59,7 +59,7 @@ rule-providers:
     interval: 86400
 
 rules:
-  - RULE-SET,reject,REJECT
+  # - RULE-SET,reject,REJECT
   - RULE-SET,direct,DIRECT
   - RULE-SET,lancidr,DIRECT
   - RULE-SET,cncidr,DIRECT
