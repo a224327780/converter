@@ -20,7 +20,7 @@ class ConverterSubscribe:
         self.subscribe_key = 'subscribes'
 
     async def init_subscribe(self):
-        await self.redis.delete(self.subscribe_key)
+        await self.redis.delete(self.subscribe_node_key)
 
     async def run(self, force=False):
         subscribes = await self.redis.hgetall(self.subscribe_key)
@@ -51,10 +51,13 @@ class ConverterSubscribe:
 
     async def convert_providers(self, url: str, name: str, is_force=None):
         # 优先取缓存
+        data = None
         if not is_force:
             data = await self.redis.hget(self.subscribe_node_key, name)
-            data = json.loads(data)
-        else:
+            if data:
+                data = json.loads(data)
+
+        if not data:
             response = await self.fetch(url)
             if not response:
                 return None

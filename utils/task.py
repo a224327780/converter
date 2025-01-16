@@ -13,6 +13,7 @@ async def converter_subscribe_task(app):
         is_force = False if i <= 0 else True
         logger.info(f'is_force: {is_force}')
         try:
+            await converter.init_subscribe()
             await converter.run(is_force)
         except Exception as e:
             logger.exception(e)
